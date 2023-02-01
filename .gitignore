@@ -102,3 +102,13 @@ dist
 
 # TernJS port file
 .tern-port
+
+## Personal
+
+# Settings for IDE PhpStorm
+.idea/
+#Env Runner for testing
+_runner.ts
+
+
+
