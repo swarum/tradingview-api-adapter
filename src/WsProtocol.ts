@@ -34,12 +34,15 @@ export class WsProtocol {
         this.createConnection();
     }
 
-    /** Section of the public code **/
+    /** Section of the protected code **/
 
     public on(eventName: "message", listener: (data: any) => void): void;
+    public on(eventName: string, listener: (data: any) => void): void;
     public on(eventName: string, listener: (data: any) => void): void {
 
         if(eventName === "message"){
+            this.$eventBus.on('message', listener);
+        } else {
             this.$eventBus.on('message', listener);
         }
     }
@@ -53,7 +56,7 @@ export class WsProtocol {
         }
     }
 
-    /** End section of the public code **/
+    /** End section of the protected code **/
 
 
     /** Section of the system code **/
