@@ -107,6 +107,7 @@ dist
 
 # Settings for IDE PhpStorm
 .idea/
+.DS_Store
 #Env Runner for testing
 _runner.ts
 
