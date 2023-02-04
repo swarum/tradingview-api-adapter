@@ -1,0 +1,31 @@
+{
+  "name": "tradingview-api-adapter",
+  "version": "1.0.0",
+  "description": "API Adapter for real-time market data as quoted prices and symbol ticker details from Tradingview",
+  "main": "src/index.ts",
+  "directories": {
+    "doc": "docs"
+  },
+  "dependencies": {
+    "ws": "^8.12.0",
+    "events": "^3.3.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/swarum/tradingview-api-adapter.git"
+  },
+  "keywords": [
+    "tradingview",
+    "tradingview-api"
+  ],
+  "author": "Gerasimenko Oleg",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/swarum/tradingview-api-adapter/issues"
+  },
+  "homepage": "https://github.com/swarum/tradingview-api-adapter#readme"
+}
