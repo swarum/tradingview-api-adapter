@@ -43,13 +43,13 @@ export class WsProtocol {
         if(eventName === "message"){
             this.$eventBus.on('message', listener);
         } else {
-            this.$eventBus.on('message', listener);
+            this.$eventBus.on(eventName, listener);
         }
     }
 
 
     public emit(eventName: string, data: any): void {
-        if(eventName === "message") {
+        if(eventName === "send") {
             this.send(WsProtocol.CollectMessagePacket(data));
         } else {
             this.$eventBus.emit(eventName, data);
@@ -77,7 +77,7 @@ export class WsProtocol {
 
 
     private handleCloseEvent(ev: CloseEvent): void {
-
+        this.$data.readyState = ProtocolStatus.Close;
     }
 
     private handleErrorEvent(ev: Event): void {
@@ -103,7 +103,7 @@ export class WsProtocol {
 
 
     private handleOpenEvent(ev: Event): void {
-
+        this.$data.readyState = ProtocolStatus.Open;
     }
 
     private send(packet: string): boolean {
@@ -134,7 +134,7 @@ export class WsProtocol {
     }
 
     private PingPong(pingCount: number): void {
-        this.emit("message", `~h~${pingCount}`)
+        this.emit("send", `~h~${pingCount}`)
     }
 
     /** End section of the system code **/

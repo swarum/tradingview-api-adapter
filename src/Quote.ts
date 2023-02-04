@@ -1,3 +1,6 @@
+import {QuoteSession} from "./Client";
+import {QuoteSessionAdapter} from "./adapters/QuoteSessionAdapter";
+
 interface QuoteInterface {
     symbolTicker: string
     symbolName: string,
@@ -17,15 +20,33 @@ interface QuoteInterface {
 
 export class Quote {
 
-    public readonly symbolTicker!: string;
-    public readonly symbolName!: string;
-    public readonly symbolMarket!: string;
+    // public readonly symbolTicker!: string;
+    // public readonly symbolName!: string;
+    // public readonly symbolMarket!: string;
 
+    public readonly pair: string;
+    private readonly $adapter: QuoteSessionAdapter;
     private fieldList: Set<string>;
 
 
-    constructor(ticker: string, market: string, fields: Array<string> = []) {
-        this.fieldList = new Set<string>(fields)
+
+    constructor(
+        quoteSessionBridge: QuoteSession,
+        ticker: string,
+        market: string,
+        fields: Array<string> = []
+    ) {
+        this.$adapter = new QuoteSessionAdapter(quoteSessionBridge);
+
+
+        this.fieldList = new Set<string>(fields);
+
+        // this.pair = `${ticker}:${market}`; example for debugging error throw
+        this.pair = `${market}:${ticker}`;
+
+
+        this.$adapter.setFields(this.fieldList);
+        this.$adapter.addPairs(this.pair);
     }
 
 
@@ -53,8 +74,8 @@ export class Quote {
 
 
 
-    public listen(): void{
-
+    public listen(callback: (data: any) => void): void{
+        this.$adapter.on('shaped_session_data', callback);
     }
 
 

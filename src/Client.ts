@@ -3,7 +3,7 @@ import {generateRandomString} from "./utilities";
 
 export interface QuoteSession {
     send: (methodName: string, args: Array<any>) => void,
-    listener: (callback: (data: any) => void) => void
+    listener: (callback: (params: any) => void) => void
 }
 
 export class Client extends WsProtocol{
@@ -23,7 +23,7 @@ export class Client extends WsProtocol{
         const quoteUSID = this.generateUniqueSessionId();
 
         const quoteSession: QuoteSession = {
-            send: (methodName, args) => this.emit("message", {
+            send: (methodName, args) => this.emit("send", {
                 "m": methodName, "p": [quoteUSID, ...args]
             }),
             listener: (callback) => this.on(quoteUSID, callback)
@@ -39,8 +39,40 @@ export class Client extends WsProtocol{
 
     /** Section of the system code **/
 
-    private handleIncomeMessage(data: any): void {
+    private handleIncomeMessage(messageData: Array<any>): void {
 
+        // const SessionData = {} as {[k:string]: any};
+
+        const SessionDataMap = new Map<string, { params: Array<any>, uploaded?: boolean}>();
+        /*!!!!currently implemented check for a session with a single quote*/
+
+        messageData.forEach(data => {
+            let USID: string, params: any;
+
+            switch (data.m){
+                case 'qsd':
+                    USID = data.p[0];
+                    params = data.p[1];
+
+                    if(!SessionDataMap.has(USID)){
+                        SessionDataMap.set(USID, {params: [params]});
+                    } else {
+                        SessionDataMap.get(USID)!.params.push(params)
+                    }
+
+                    break;
+                case 'quote_completed':
+                    USID = data.p[0];
+                    // params = data.p[1];
+
+                    if(SessionDataMap.has(USID))  SessionDataMap.get(USID)!.uploaded = true;
+                    break;
+                default:
+                    console.log("Default Client", data);
+            }
+        })
+
+        SessionDataMap.forEach((value, key) => this.emit(key, value));
     }
 
     /** End section of the system code **/
