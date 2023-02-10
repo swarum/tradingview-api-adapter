@@ -2,7 +2,7 @@
   "name": "tradingview-api-adapter",
   "version": "1.0.0",
   "description": "API Adapter for real-time market data as quoted prices and symbol ticker details from Tradingview",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
   "directories": {
     "doc": "docs"
   },
@@ -20,7 +20,17 @@
   },
   "keywords": [
     "tradingview",
-    "tradingview-api"
+    "tradingview-api",
+    "tradingview-webhooks",
+    "tradingview-indicator",
+    "stocks-api",
+    "stocks-market",
+    "stock-prices",
+    "stock-trading",
+    "realtime-stocks",
+    "crypto",
+    "bitcoin",
+    "dogecoin"
   ],
   "author": "Gerasimenko Oleg",
   "license": "MIT",
