@@ -22,7 +22,7 @@ export class QuoteSessionAdapter extends EventEmitter{
     /** Section of the protected code **/
 
     public setFields(fieldList: Set<string>): void {
-        this.$bridge.send("quote_set_fields", [...fieldList])
+        this.$bridge.send("quote_set_fields", Array.from(fieldList))
     }
 
     public addPairs(pair: string): void;
