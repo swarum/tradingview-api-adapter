@@ -21,8 +21,14 @@ export class QuoteSessionAdapter extends EventEmitter{
 
     /** Section of the protected code **/
 
-    public setFields(fieldList: Set<string>): void {
-        this.$bridge.send("quote_set_fields", Array.from(fieldList))
+    public setFields(field: string): void;
+    public setFields(fieldList: Set<string>): void;
+    public setFields(fieldList: string | Set<string>): void {
+        if(typeof fieldList === 'string'){
+            this.$bridge.send("quote_set_fields", [fieldList]);
+        } else {
+            this.$bridge.send("quote_set_fields", Array.from(fieldList))
+        }
     }
 
     public addPairs(pair: string): void;
@@ -33,10 +39,14 @@ export class QuoteSessionAdapter extends EventEmitter{
         }
 
         this.$bridge.send('quote_add_symbols', pairList)
+        // this.$bridge.send('quote_add_symbols', [`={"adjustment":"splits","symbol":"${(pairList[0])}"}`])
+        // this.$client.send("quote_fast_symbols", [this.sessionID, `={"adjustment":"splits","symbol":"${(pairs[0])}"}`])
+
     }
 
-    protected removePairs(pair: string): void;
-    protected removePairs(pairList: string | Array<string>): void {
+    public removePairs(pair: string): void;
+    public removePairs(pairList: Array<string>): void;
+    public removePairs(pairList: string | Array<string>): void {
         if(typeof pairList === 'string'){
             pairList = [pairList]
         }
@@ -67,6 +77,8 @@ export class QuoteSessionAdapter extends EventEmitter{
                 case 'ok':
                     Object.assign(quotedData, param.v);
                     break;
+                default:
+                    console.log('From default', param)
             }
         })
 
