@@ -10,15 +10,21 @@ class QuoteSessionAdapter extends events_1.EventEmitter {
         this.$bridge.listener(params => this.handleSessionListener(params));
         this.launchSession();
     }
-    /** Section of the protected code **/
     setFields(fieldList) {
-        this.$bridge.send("quote_set_fields", Array.from(fieldList));
+        if (typeof fieldList === 'string') {
+            this.$bridge.send("quote_set_fields", [fieldList]);
+        }
+        else {
+            this.$bridge.send("quote_set_fields", Array.from(fieldList));
+        }
     }
     addPairs(pairList) {
         if (typeof pairList === 'string') {
             pairList = [pairList];
         }
         this.$bridge.send('quote_add_symbols', pairList);
+        // this.$bridge.send('quote_add_symbols', [`={"adjustment":"splits","symbol":"${(pairList[0])}"}`])
+        // this.$client.send("quote_fast_symbols", [this.sessionID, `={"adjustment":"splits","symbol":"${(pairs[0])}"}`])
     }
     removePairs(pairList) {
         if (typeof pairList === 'string') {
@@ -44,6 +50,8 @@ class QuoteSessionAdapter extends events_1.EventEmitter {
                 case 'ok':
                     Object.assign(quotedData, param.v);
                     break;
+                default:
+                    console.log('From default', param);
             }
         });
         this.emit('shaped_session_data', quotedData);
