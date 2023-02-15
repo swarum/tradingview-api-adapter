@@ -75,7 +75,8 @@ export class QuoteSessionAdapter extends EventEmitter{
                     console.error("Error", param.errmsg); //here I will need to add an error throw event
                     break;
                 case 'ok':
-                    Object.assign(quotedData, param.v);
+                    console.log(sessionData.params.length)
+                    Object.assign(quotedData, {ticker: param.n, data: param.v});
                     break;
                 default:
                     console.log('From default', param)

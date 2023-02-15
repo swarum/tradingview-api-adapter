@@ -46,7 +46,7 @@ export class Quote {
 
 
         this.$adapter.setFields(this.fieldList);
-        this.$adapter.addPairs(this.pair);
+        this.$adapter.addPairs([this.pair, 'BINANCE:BTCUSDT']);
     }
 
 
