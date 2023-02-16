@@ -1,23 +1,6 @@
 import {QuoteSession} from "./Client";
 import {QuoteSessionAdapter} from "./adapters/QuoteSessionAdapter";
 
-interface QuoteInterface {
-    symbolTicker: string
-    symbolName: string,
-    symbolMarket: string,
-
-    fieldList: Set<string>,
-
-    addField: (field: string) => this,
-    removeField: (field: string) => this,
-
-    listen: (stream: (data: object) => void) => void;
-
-    pause: () => void,
-    resume: () => void
-}
-
-
 export class Quote {
 
     // public readonly symbolTicker!: string;
@@ -27,7 +10,6 @@ export class Quote {
     public readonly pair: string;
     private readonly $adapter: QuoteSessionAdapter;
     private fieldList: Set<string>;
-
 
 
     constructor(
