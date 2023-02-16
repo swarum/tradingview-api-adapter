@@ -3,6 +3,8 @@
 
 ♻︎ In developing
 
+✅ Current Test Version: 1.2.0 [16.02.2023]
+
 👨🏻‍💻I need your feedback. Help improve the library for our general benefit
 
 ## Installation
@@ -124,6 +126,37 @@ adapter.Quote('BTCUSD', 'BINANCE', ['lp', 'ch', 'chp']).listen(data => {
     time: '1676160000',
     'update-time': '1676246396.0',
     volume: '1171.77258'
+  }
+}
+```
+
+### QuoteChannel [💎NEW Class]: Obtaining multi-quoted data in real time
+
+#### Usage
+```ruby
+import {TvApiAdapter} from 'tradingview-api-adapter'
+
+
+const adapter = new TvApiAdapter();
+
+adapter.QuoteChannel({
+    'MUN': ['APC'],
+    'Binance': ['BTCUSDT', 'DOGEUSDT']
+}, ['lp', 'ask', 'bid'])
+.listen(data => {
+    console.log(data)
+})
+```
+
+#### The result of the console
+```ruby
+{
+  BINANCE: {
+    DOGEUSDT: { lp: 0.08892, bid: 0.08892, ask: 0.08893 },
+    BTCUSDT: { bid: 24597.31, ask: 24597.32, lp: 24597.23 }
+  },
+  MUN: { 
+    APC: { lp: 145.24, bid: 144.86, ask: 144.92 } 
   }
 }
 ```
