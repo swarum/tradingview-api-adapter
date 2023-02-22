@@ -1,7 +1,8 @@
 import {Client} from "./Client";
 import {Quote} from "./Quote";
 import {TickerDetails} from "./TickerDetails";
-import {PairGroups, QuoteChannel} from "./QuoteChannel";
+import {QuoteChannel} from "./QuoteChannel";
+import {Field, KeyTo} from "./types";
 
 export class TvApiAdapter {
 
@@ -15,7 +16,7 @@ export class TvApiAdapter {
         return new Quote(this.$client.createQuoteSession(), ticker, market, fields);
     }
 
-    public QuoteChannel(pairGroups: PairGroups, fields: Array<string>): QuoteChannel {
+    public QuoteChannel(pairGroups: KeyTo<string[]>, fields: Array<Field>): QuoteChannel {
         return new QuoteChannel(this.$client.createQuoteSession(), pairGroups, fields);
     }
 

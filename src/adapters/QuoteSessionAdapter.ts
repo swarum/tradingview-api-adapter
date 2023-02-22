@@ -10,7 +10,7 @@ interface ParameterFields {
 
 export class QuoteSessionAdapter extends EventEmitter{
 
-    private firstBoot = true;
+    private firstLoad = true;
 
     constructor(
         private readonly $bridge: QuoteSession,
@@ -50,13 +50,13 @@ export class QuoteSessionAdapter extends EventEmitter{
     }
 
     public removePairs(pair: string): void;
-    public removePairs(pairList: Array<string>): void;
-    public removePairs(pairList: string | Array<string>): void {
+    public removePairs(pairList: Set<string>): void;
+    public removePairs(pairList: string | Set<string>): void {
         if(typeof pairList === 'string'){
-            pairList = [pairList]
+            this.$bridge.send('quote_remove_symbols', [pairList]);
+        } else {
+            this.$bridge.send('quote_remove_symbols', Array.from(pairList));
         }
-
-        this.$bridge.send('quote_remove_symbols', pairList);
     }
 
     /** End section of the protected code **/
@@ -69,9 +69,6 @@ export class QuoteSessionAdapter extends EventEmitter{
     }
 
     private handleSessionListener(sessionData: {params: Array<ParameterFields>, uploaded?: boolean}): void {
-        if(this.firstBoot && sessionData.uploaded) this.firstBoot = false;
-
-
         let quotedData = {};
 
         /*!!!!currently implemented check for a session with a single quote*/
@@ -111,7 +108,14 @@ export class QuoteSessionAdapter extends EventEmitter{
         })
 
 
-        this.emit('shaped_session_data', quotedData);
+        this.emit('shaped_session_data', quotedData, {
+            firstLoad: this.firstLoad,
+            reload: !!sessionData.uploaded && !this.firstLoad
+            // потом нужно будет доработать флаги (учесть чувствительность полей котировки)
+        });
+
+
+        if(this.firstLoad && !!sessionData.uploaded) this.firstLoad = false;
     }
 
 
