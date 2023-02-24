@@ -139,11 +139,19 @@ import {TvApiAdapter} from 'tradingview-api-adapter'
 
 const adapter = new TvApiAdapter();
 
-adapter.QuoteChannel({
+const exChannel = adapter.QuoteChannel({
     'MUN': ['APC'],
     'Binance': ['BTCUSDT', 'DOGEUSDT']
 }, ['lp', 'ask', 'bid'])
-.listen(data => {
+
+=====or=====
+
+const exChannel = adapter.QuoteChannel([
+    'BINANCE:BTCUSDT', 'BINANCE:DOGEUSDT' 'MUN:APC'
+], ['lp', 'ask', 'bid'])
+
+
+exChannel.listen(data => {
     console.log(data)
 })
 ```

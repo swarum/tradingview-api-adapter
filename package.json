@@ -1,6 +1,6 @@
 {
   "name": "tradingview-api-adapter",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "API Adapter for real-time market data as quoted prices and symbol ticker details from Tradingview",
   "main": "dist/index.js",
   "directories": {
@@ -12,6 +12,8 @@
   },
   "devDependencies": {},
   "scripts": {
+    "dev-watch": "nodemon _runner.ts",
+    "build": "rm -r dist || tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

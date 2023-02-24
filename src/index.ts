@@ -16,7 +16,9 @@ export class TvApiAdapter {
         return new Quote(this.$client.createQuoteSession(), ticker, market, fields);
     }
 
-    public QuoteChannel(pairGroups: KeyTo<string[]>, fields: Array<Field>): QuoteChannel {
+    public QuoteChannel(quoteKeyList: string[], fields: Array<Field>): QuoteChannel;
+    public QuoteChannel(pairGroups: KeyTo<string[]>, fields: Array<Field>): QuoteChannel;
+    public QuoteChannel(pairGroups: string[] | KeyTo<string[]>, fields: Array<Field>): QuoteChannel {
         return new QuoteChannel(this.$client.createQuoteSession(), pairGroups, fields);
     }
 

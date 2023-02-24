@@ -12,7 +12,7 @@ export class QuoteChannel {
 
     constructor(
         quoteSessionBridge: QuoteSession,
-        pairGroups: KeyTo<string[]>,
+        pairGroups: string[] | KeyTo<string[]>,
         fields: Array<Field> = []
     ) {
         this.$adapter = new QuoteSessionAdapter(quoteSessionBridge, true);
@@ -78,11 +78,15 @@ export class QuoteChannel {
 
 
 
-    private pairGroupSerializer(pairGroups: KeyTo<string[]>): void {
-        Object.keys(pairGroups).forEach((market) => {
-            pairGroups[market].forEach(ticker => {
-                this.pairList.add(`${market.toUpperCase()}:${ticker.toUpperCase()}`)
+    private pairGroupSerializer(pairGroups: KeyTo<string[]> | string[]): void {
+        if(Array.isArray(pairGroups)) {
+            this.pairList = new Set(pairGroups);
+        } else {
+            Object.keys(pairGroups).forEach((market) => {
+                pairGroups[market].forEach(ticker => {
+                    this.pairList.add(`${market.toUpperCase()}:${ticker.toUpperCase()}`)
+                })
             })
-        })
+        }
     }
 }
