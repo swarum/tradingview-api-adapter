@@ -2,9 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [main, v2]
+    branches: [main]
   pull_request:
     branches: [main, v2]
+
+# Cancel in-progress runs of the same branch/PR when a new commit arrives.
+# This prevents stacking up CI runs during rapid-fire pushes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint-and-test:
