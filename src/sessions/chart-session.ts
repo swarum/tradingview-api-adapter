@@ -18,7 +18,7 @@
 
 import { createLogger } from '../utils/logger.js'
 import { randomId } from '../utils/random-id.js'
-import { TvSymbolError } from '../core/errors.js'
+import { TvError, TvSymbolError, TvTimeoutError } from '../core/errors.js'
 import type { SessionManager } from '../core/session-manager.js'
 import { normalizeTimeframe } from '../types/candle.js'
 import type { Candle, Timeframe } from '../types/candle.js'
@@ -57,6 +57,18 @@ interface InternalSeries {
   initialLoaded: boolean
 }
 
+interface PendingResolve {
+  pair: string
+  resolve: (info: Record<string, unknown>) => void
+  reject: (err: Error) => void
+}
+
+interface PendingCandles {
+  symbol: string
+  resolve: (candles: Candle[]) => void
+  reject: (err: Error) => void
+}
+
 export class ChartSession implements Session {
   readonly id: string
   private readonly manager: SessionManager
@@ -70,6 +82,10 @@ export class ChartSession implements Session {
   private readonly onCandlesCb?: (update: CandlesUpdate) => void
   private readonly onTickCb?: (tick: CandleTick) => void
   private readonly onErrorCb?: (err: TvSymbolError) => void
+
+  // One-shot helpers — see `resolvePair()` and `fetchCandlesOnce()`.
+  private readonly pendingResolves = new Map<string, PendingResolve>() // by symbolKey
+  private readonly pendingCandles = new Map<string, PendingCandles>() // by seriesId
 
   constructor(opts: ChartSessionOptions) {
     this.id = `cs_${randomId(12)}`
@@ -156,10 +172,106 @@ export class ChartSession implements Session {
     return out
   }
 
+  /**
+   * Promise-based helper: resolve a symbol without creating a series.
+   * Returns the raw `symbol_resolved` payload from TradingView.
+   *
+   * Useful for fetching symbol metadata (description, exchange, type,
+   * session hours, etc.) without paying for a candle subscription.
+   */
+  async resolvePair(pair: string, timeoutMs = 5000): Promise<Record<string, unknown>> {
+    if (this.disposed) throw new TvError('ChartSession has been disposed')
+
+    const symbolKey = `sym_${this.nextSymbolSeq++}`
+
+    return new Promise<Record<string, unknown>>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingResolves.delete(symbolKey)
+        reject(new TvTimeoutError(`resolvePair(${pair})`, timeoutMs))
+      }, timeoutMs)
+
+      this.pendingResolves.set(symbolKey, {
+        pair,
+        resolve: (info) => {
+          clearTimeout(timer)
+          resolve(info)
+        },
+        reject: (err) => {
+          clearTimeout(timer)
+          reject(err)
+        },
+      })
+
+      this.manager.sendCommand('resolve_symbol', [
+        this.id,
+        symbolKey,
+        `={"symbol":"${pair}","adjustment":"splits"}`,
+      ])
+    })
+  }
+
+  /**
+   * Promise-based helper: fetch a historical candle window in one call.
+   * Creates a temporary series, waits for the initial backfill, then
+   * removes the series and returns the candles.
+   */
+  async fetchCandlesOnce(
+    symbol: string,
+    opts: { timeframe: Timeframe; barCount: number },
+    timeoutMs = 15_000,
+  ): Promise<Candle[]> {
+    if (this.disposed) throw new TvError('ChartSession has been disposed')
+
+    return new Promise<Candle[]>((resolve, reject) => {
+      let seriesId: string
+      const timer = setTimeout(() => {
+        this.pendingCandles.delete(seriesId)
+        reject(new TvTimeoutError(`fetchCandlesOnce(${symbol})`, timeoutMs))
+      }, timeoutMs)
+
+      try {
+        seriesId = this.requestSeries({
+          symbol,
+          timeframe: opts.timeframe,
+          barCount: opts.barCount,
+        })
+      } catch (err) {
+        clearTimeout(timer)
+        reject(err as Error)
+        return
+      }
+
+      this.pendingCandles.set(seriesId, {
+        symbol,
+        resolve: (candles) => {
+          clearTimeout(timer)
+          this.removeSeries(seriesId)
+          resolve(candles)
+        },
+        reject: (err) => {
+          clearTimeout(timer)
+          this.removeSeries(seriesId)
+          reject(err)
+        },
+      })
+    })
+  }
+
   /** Close the chart session on the server and release local state. */
   async delete(): Promise<void> {
     if (this.disposed) return
     this.disposed = true
+
+    // Reject any pending one-shot promises so callers don't hang.
+    for (const p of this.pendingResolves.values()) {
+      p.reject(new TvError('ChartSession deleted before resolve'))
+    }
+    this.pendingResolves.clear()
+    for (const p of this.pendingCandles.values()) {
+      p.reject(new TvError('ChartSession deleted before candles delivered'))
+    }
+    this.pendingCandles.clear()
+
     if (this.created) {
       this.manager.sendCommand('chart_delete_session', [this.id])
     }
@@ -237,6 +349,21 @@ export class ChartSession implements Session {
   private handleSymbolResolved(params: unknown[]): void {
     const symbolKey = params[1]
     if (typeof symbolKey !== 'string') return
+
+    // Promise-based one-shot resolve takes priority.
+    const pending = this.pendingResolves.get(symbolKey)
+    if (pending) {
+      this.pendingResolves.delete(symbolKey)
+      const info = params[2]
+      if (typeof info === 'object' && info !== null) {
+        pending.resolve(info as Record<string, unknown>)
+      } else {
+        pending.reject(new TvError(`Invalid symbol_resolved payload for ${pending.pair}`))
+      }
+      return
+    }
+
+    // Otherwise it's attached to a running series.
     const series = this.seriesBySymbolKey.get(symbolKey)
     if (!series) return
     series.resolved = true
@@ -245,10 +372,26 @@ export class ChartSession implements Session {
   private handleSymbolError(params: unknown[]): void {
     const symbolKey = params[1]
     if (typeof symbolKey !== 'string') return
+
+    const reason = typeof params[2] === 'string' ? params[2] : 'symbol_error'
+
+    // Reject the one-shot resolver if present.
+    const pending = this.pendingResolves.get(symbolKey)
+    if (pending) {
+      this.pendingResolves.delete(symbolKey)
+      pending.reject(new TvSymbolError(pending.pair, reason))
+      return
+    }
+
     const series = this.seriesBySymbolKey.get(symbolKey)
     if (!series) return
-    const reason = typeof params[2] === 'string' ? params[2] : 'symbol_error'
     this.onErrorCb?.(new TvSymbolError(series.request.symbol, reason))
+    // Also reject any pending candles tied to this series.
+    const pendingCandles = this.pendingCandles.get(series.seriesId)
+    if (pendingCandles) {
+      this.pendingCandles.delete(series.seriesId)
+      pendingCandles.reject(new TvSymbolError(series.request.symbol, reason))
+    }
     this.series.delete(series.seriesId)
     this.seriesBySymbolKey.delete(symbolKey)
   }
@@ -287,6 +430,17 @@ export class ChartSession implements Session {
       // Heuristic: an update larger than 1 bar is part of the historical
       // backfill. A single-bar update is a live tick.
       const isBackfill = method === 'timescale_update' || candles.length > 1
+
+      // If the backfill finishes a one-shot pending candle fetch,
+      // resolve its promise (which also removes the series).
+      if (isBackfill) {
+        const pending = this.pendingCandles.get(seriesId)
+        if (pending) {
+          this.pendingCandles.delete(seriesId)
+          pending.resolve(candles)
+          continue
+        }
+      }
 
       if (isBackfill && !series.initialLoaded) {
         series.initialLoaded = true

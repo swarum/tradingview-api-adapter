@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ChartSession } from '../../src/sessions/chart-session.js'
 import { SessionManager } from '../../src/core/session-manager.js'
 import { encodeFrame } from '../../src/core/protocol.js'
-import { TvSymbolError } from '../../src/core/errors.js'
+import { TvSymbolError, TvTimeoutError } from '../../src/core/errors.js'
 import type { CandlesUpdate, CandleTick } from '../../src/sessions/session.types.js'
 import { startMockServer, type MockServer } from '../fixtures/ws-server.js'
 import { waitFor } from '../helpers/wait-for.js'
@@ -221,5 +221,101 @@ describe('ChartSession', () => {
     await waitFor(() => updates.length === 1)
     expect(updates[0]!.candles).toHaveLength(2)
     expect(updates[0]!.candles.map((c) => c.time)).toEqual([1, 4])
+  })
+
+  describe('resolvePair (promise helper)', () => {
+    it('resolves with raw symbol_resolved payload', async () => {
+      const { m } = await connect()
+      const cs = new ChartSession({ manager: m })
+
+      // Simulate server reply asynchronously after resolvePair fires.
+      queueMicrotask(() => {
+        server.broadcast(
+          encodeFrame(
+            JSON.stringify({
+              m: 'symbol_resolved',
+              p: [cs.id, 'sym_1', { symbol: 'BTCUSDT', description: 'Bitcoin', type: 'crypto' }],
+            }),
+          ),
+        )
+      })
+
+      const info = await cs.resolvePair('BINANCE:BTCUSDT', 2000)
+      expect(info.symbol).toBe('BTCUSDT')
+      expect(info.description).toBe('Bitcoin')
+    })
+
+    it('rejects on symbol_error', async () => {
+      const { m } = await connect()
+      const cs = new ChartSession({ manager: m })
+
+      queueMicrotask(() => {
+        server.broadcast(
+          encodeFrame(
+            JSON.stringify({
+              m: 'symbol_error',
+              p: [cs.id, 'sym_1', 'invalid_symbol'],
+            }),
+          ),
+        )
+      })
+
+      await expect(cs.resolvePair('BAD:SYM', 2000)).rejects.toBeInstanceOf(TvSymbolError)
+    })
+
+    it('rejects with TvTimeoutError on timeout', async () => {
+      const { m } = await connect()
+      const cs = new ChartSession({ manager: m })
+
+      await expect(cs.resolvePair('X:Y', 50)).rejects.toBeInstanceOf(TvTimeoutError)
+    })
+  })
+
+  describe('fetchCandlesOnce (promise helper)', () => {
+    it('resolves with candles and removes the series', async () => {
+      const { m, received } = await connect()
+      const cs = new ChartSession({ manager: m })
+
+      const bars = [
+        { i: 0, v: [1000, 100, 110, 90, 105, 50] },
+        { i: 1, v: [2000, 105, 115, 100, 112, 60] },
+        { i: 2, v: [3000, 112, 118, 109, 114, 45] },
+      ]
+
+      queueMicrotask(() => {
+        const payload = { sds_1: { s: bars } }
+        server.broadcast(
+          encodeFrame(JSON.stringify({ m: 'timescale_update', p: [cs.id, payload] })),
+        )
+      })
+
+      const candles = await cs.fetchCandlesOnce(
+        'BINANCE:BTCUSDT',
+        { timeframe: '1h', barCount: 3 },
+        3000,
+      )
+
+      expect(candles).toHaveLength(3)
+      expect(candles[0]).toEqual({
+        time: 1000,
+        open: 100,
+        high: 110,
+        low: 90,
+        close: 105,
+        volume: 50,
+      })
+
+      // Series should have been removed after delivery.
+      await waitFor(() => received.some((r) => r.includes('remove_series')))
+    })
+
+    it('rejects on TvTimeoutError when no data arrives', async () => {
+      const { m } = await connect()
+      const cs = new ChartSession({ manager: m })
+
+      await expect(
+        cs.fetchCandlesOnce('X:Y', { timeframe: '60', barCount: 3 }, 80),
+      ).rejects.toBeInstanceOf(TvTimeoutError)
+    })
   })
 })
