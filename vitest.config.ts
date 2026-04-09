@@ -3,12 +3,25 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     globals: false,
-    environment: 'node',
-    // Browser-env tests live under tests/unit/browser-*.test.ts and
-    // run in happy-dom. Everything else runs in plain Node.
-    environmentMatchGlobs: [['tests/unit/browser-*.test.ts', 'happy-dom']],
-    include: ['tests/unit/**/*.test.ts', 'tests/integration/**/*.test.ts'],
-    exclude: ['tests/e2e/**', 'node_modules', 'dist'],
+    // Split tests into two projects so node-env tests never accidentally
+    // load happy-dom, and happy-dom-env tests never see node-only fixtures.
+    projects: [
+      {
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: ['tests/unit/**/*.test.ts', 'tests/integration/**/*.test.ts'],
+          exclude: ['tests/unit/browser-*.test.ts', 'tests/e2e/**', 'node_modules', 'dist'],
+        },
+      },
+      {
+        test: {
+          name: 'browser',
+          environment: 'happy-dom',
+          include: ['tests/unit/browser-*.test.ts'],
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],

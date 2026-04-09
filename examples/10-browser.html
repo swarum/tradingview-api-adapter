@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>tradingview-api-adapter in the browser</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 2em;
+        background: #0d1117;
+        color: #c9d1d9;
+      }
+      h1 {
+        color: #58a6ff;
+      }
+      .quote {
+        font-size: 1.5em;
+        margin: 1em 0;
+      }
+      .price {
+        color: #7ee787;
+        font-weight: bold;
+      }
+      .note {
+        background: #21262d;
+        border-left: 3px solid #d29922;
+        padding: 1em;
+        border-radius: 4px;
+        margin: 1em 0;
+        font-size: 0.9em;
+      }
+      code {
+        background: #161b22;
+        padding: 2px 6px;
+        border-radius: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>tradingview-api-adapter — browser demo</h1>
+
+    <div class="quote">BINANCE:BTCUSDT — <span id="price" class="price">loading…</span></div>
+
+    <div class="note">
+      <strong>Important:</strong> TradingView's WebSocket endpoint checks the
+      <code>Origin</code> header, and browsers set it automatically to the page's origin. If you
+      serve this HTML from a domain other than tradingview.com, the connection may be rejected. The
+      typical workaround is to proxy the WebSocket through your own backend server that sets the
+      expected origin. <br /><br />
+      See <code>docs/guides/browser.md</code> for the full story.
+    </div>
+
+    <script type="module">
+      // Load the library directly from esm.sh — no build step required.
+      // Replace @2 with @latest once V2 is published.
+      import { tv } from 'https://esm.sh/tradingview-api-adapter@next'
+
+      const client = tv()
+      const btc = client.symbol('BINANCE:BTCUSDT')
+
+      const stream = btc.stream(['lp'])
+      stream.on('price', ({ price }) => {
+        document.getElementById('price').textContent = `$${price}`
+      })
+
+      stream.on('error', (err) => {
+        document.getElementById('price').textContent = `error: ${err.message}`
+      })
+
+      window.addEventListener('beforeunload', () => {
+        stream.close()
+        client.disconnect()
+      })
+    </script>
+  </body>
+</html>

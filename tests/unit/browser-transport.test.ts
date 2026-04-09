@@ -1,6 +1,4 @@
 /**
- * @vitest-environment happy-dom
- *
  * Smoke test that verifies the Transport code path is browser-safe:
  *   - `window` is defined (happy-dom simulates DOM)
  *   - `globalThis.WebSocket` is available (provided by happy-dom)
