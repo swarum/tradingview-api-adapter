@@ -14,7 +14,11 @@
  *   - Heartbeat handling (composed at the SessionManager layer)
  */
 
-import { WebSocket as NodeWebSocket, type ClientOptions } from 'ws'
+// `import type` is erased at compile time — it does NOT cause the `ws`
+// module to be loaded in browser bundles. The actual runtime import
+// happens dynamically inside `loadNodeWs()` below, which is only
+// reached in Node-like runtimes.
+import type { WebSocket as NodeWebSocket, ClientOptions as NodeWsOptions } from 'ws'
 import { calculateBackoff } from '../utils/backoff.js'
 import { createLogger } from '../utils/logger.js'
 import { TvConnectionError } from './errors.js'
@@ -24,7 +28,27 @@ const log = createLogger('transport')
 
 const DEFAULT_MAX_ATTEMPTS = 10
 
+// Use a local interface instead of `typeof import('ws')` so ESLint's
+// consistent-type-imports rule is happy (it forbids `import()` type
+// annotations in favour of top-level `import type`, which we already
+// do above).
+interface NodeWsModule {
+  WebSocket: typeof NodeWebSocket
+}
 type AnyWebSocket = NodeWebSocket | WebSocket
+
+/**
+ * Lazily import the Node `ws` module. Cached after the first call so
+ * subsequent reconnects don't pay the import cost. In browser bundles
+ * this function is never called, so `ws` never hits the bundle.
+ */
+let cachedNodeWsModule: Promise<NodeWsModule> | null = null
+function loadNodeWs(): Promise<NodeWsModule> {
+  if (!cachedNodeWsModule) {
+    cachedNodeWsModule = import('ws') as unknown as Promise<NodeWsModule>
+  }
+  return cachedNodeWsModule
+}
 
 export class Transport {
   private ws: AnyWebSocket | null = null
@@ -76,17 +100,19 @@ export class Transport {
     this.state = 'connecting'
     log('connect() → %s', this.opts.url)
 
-    await new Promise<void>((resolve, reject) => {
-      let ws: AnyWebSocket
-      try {
-        ws = this.createSocket()
-      } catch (err) {
-        this.state = 'closed'
-        reject(new TvConnectionError('Failed to create WebSocket', { cause: err }))
-        return
-      }
-      this.ws = ws
+    // Phase 1: asynchronously create the underlying WebSocket. This may
+    // trigger a dynamic `import('ws')` on the first call in Node.
+    let ws: AnyWebSocket
+    try {
+      ws = await this.createSocket()
+    } catch (err) {
+      this.state = 'closed'
+      throw new TvConnectionError('Failed to create WebSocket', { cause: err })
+    }
+    this.ws = ws
 
+    // Phase 2: attach listeners and wait for the socket to reach open.
+    await new Promise<void>((resolve, reject) => {
       let settled = false
 
       const handleOpen = (): void => {
@@ -143,7 +169,7 @@ export class Transport {
         }
       }
 
-      attachListeners(ws, { handleOpen, handleMessage, handleError, handleClose })
+      attachListeners(ws!, { handleOpen, handleMessage, handleError, handleClose })
     })
   }
 
@@ -244,21 +270,45 @@ export class Transport {
 
   // ─── private ────────────────────────────────────────────────
 
-  private createSocket(): AnyWebSocket {
-    // Prefer native WebSocket in browser / runtime that provides it globally.
+  /**
+   * Pick the right WebSocket implementation for the current runtime.
+   *
+   *   1. Browser-like (`window` global + `WebSocket` global): use the
+   *      native `WebSocket` — `origin`/`headers`/`agent` cannot be set,
+   *      they're controlled by the browser.
+   *   2. Node-like: dynamically import the `ws` package so that browser
+   *      bundlers can tree-shake it away. This gives us `origin`,
+   *      `headers`, and `agent` for proxies.
+   *   3. Fallback: if `ws` can't be loaded but native `WebSocket` is
+   *      present (e.g. Bun, Deno, Cloudflare Workers, Node 22+), use
+   *      that — headers simply won't be set.
+   */
+  private async createSocket(): Promise<AnyWebSocket> {
     const globalWs = (globalThis as { WebSocket?: typeof WebSocket }).WebSocket
-    const isBrowser =
-      typeof globalThis !== 'undefined' &&
-      typeof (globalThis as { window?: unknown }).window !== 'undefined'
+    const isBrowserLike = typeof (globalThis as { window?: unknown }).window !== 'undefined'
 
-    if (isBrowser && globalWs) {
+    if (isBrowserLike && globalWs) {
+      log('createSocket: using native WebSocket (browser-like runtime)')
       return new globalWs(this.opts.url)
     }
 
-    const wsOpts: ClientOptions = {}
-    if (this.opts.origin) wsOpts.origin = this.opts.origin
-    if (this.opts.agent) wsOpts.agent = this.opts.agent as ClientOptions['agent']
-    return new NodeWebSocket(this.opts.url, wsOpts)
+    try {
+      const wsModule = await loadNodeWs()
+      log('createSocket: using ws package')
+      const wsOpts: NodeWsOptions = {}
+      if (this.opts.origin) wsOpts.origin = this.opts.origin
+      if (this.opts.agent) wsOpts.agent = this.opts.agent as NodeWsOptions['agent']
+      if (this.opts.headers) wsOpts.headers = this.opts.headers
+      return new wsModule.WebSocket(this.opts.url, wsOpts)
+    } catch (err) {
+      if (globalWs) {
+        log('createSocket: ws unavailable, falling back to native WebSocket')
+        return new globalWs(this.opts.url)
+      }
+      throw new TvConnectionError('No WebSocket implementation available in this runtime', {
+        cause: err,
+      })
+    }
   }
 
   private flushBuffer(): void {

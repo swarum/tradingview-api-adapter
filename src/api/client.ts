@@ -27,6 +27,34 @@ import { MultiStream } from './multi-stream.js'
 
 const log = createLogger('client')
 
+/**
+ * Authentication options.
+ *
+ * TradingView recognises two cooperating pieces of auth state:
+ *
+ *   1. The `sessionid` + `sessionid_sign` cookies from an active
+ *      tradingview.com login. These are passed as a `Cookie` header on
+ *      the WebSocket handshake (Node only — browsers don't allow
+ *      custom handshake headers).
+ *   2. A per-session `authToken` sent via the `set_auth_token` message
+ *      after the server hello. This is a JWT-like token you normally
+ *      obtain by POSTing `sessionid` to `https://www.tradingview.com/…`
+ *      ahead of time.
+ *
+ * This library does **not** fetch `authToken` for you — if you need
+ * premium features, obtain the token through your own auth flow and
+ * pass it here. Without an `authToken`, public quotes and candles
+ * still work through the implicit `"unauthorized_user_token"` default.
+ */
+export interface AuthOptions {
+  /** TradingView auth token. Omit for public/anonymous access. */
+  authToken?: string
+  /** `sessionid` cookie from tradingview.com (Node only). */
+  sessionid?: string
+  /** `sessionid_sign` cookie from tradingview.com (Node only). */
+  sessionidSign?: string
+}
+
 export interface ClientOptions {
   /** WebSocket URL. Defaults to TradingView widget endpoint. */
   url?: string
@@ -34,6 +62,10 @@ export interface ClientOptions {
   origin?: string
   /** HTTP/SOCKS agent for proxy support (Node only). */
   agent?: unknown
+  /** Authentication credentials (optional). */
+  auth?: AuthOptions
+  /** Locale to advertise to TradingView (`[language, country]`). Defaults to `['en', 'US']`. */
+  locale?: [language: string, country: string]
   /** Reconnect behaviour for the underlying transport. */
   reconnect?: ReconnectOptions
   /** Symbol add/remove rate limiting. */
@@ -81,6 +113,9 @@ export class Client {
       url: opts.url,
       origin: opts.origin,
       agent: opts.agent,
+      headers: buildAuthHeaders(opts.auth),
+      authToken: opts.auth?.authToken,
+      locale: opts.locale,
       reconnect: opts.reconnect,
       rateLimit: opts.rateLimit,
       signal: opts.signal,
@@ -250,4 +285,18 @@ export class Client {
       }
     }
   }
+}
+
+/**
+ * Build the Cookie header from `sessionid` / `sessionidSign` auth
+ * options. Returns `undefined` when no cookies are provided, so
+ * callers can simply forward the result to the transport.
+ */
+function buildAuthHeaders(auth: AuthOptions | undefined): Record<string, string> | undefined {
+  if (!auth?.sessionid) return undefined
+  const parts = [`sessionid=${auth.sessionid}`]
+  if (auth.sessionidSign) {
+    parts.push(`sessionid_sign=${auth.sessionidSign}`)
+  }
+  return { Cookie: parts.join('; ') }
 }

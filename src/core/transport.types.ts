@@ -31,6 +31,12 @@ export interface TransportOptions {
   origin?: string
   /** HTTP/SOCKS agent for proxy support. Node only. */
   agent?: unknown
+  /**
+   * Extra HTTP headers to send on the upgrade request. Node only —
+   * browsers do not allow custom headers on WebSocket handshakes.
+   * Used for authentication (`Cookie: sessionid=...`).
+   */
+  headers?: Record<string, string>
   /** Reconnect behaviour. Set `enabled: false` to disable. */
   reconnect?: ReconnectOptions
   /** Abort the transport and disable reconnect when signalled. */

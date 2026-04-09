@@ -23,11 +23,16 @@ import type { SessionManagerOptions, SessionManagerState } from './session-manag
 
 const log = createLogger('session-manager')
 
+const DEFAULT_AUTH_TOKEN = 'unauthorized_user_token'
+const DEFAULT_LOCALE: [string, string] = ['en', 'US']
+
 export class SessionManager {
   readonly transport: Transport
   readonly rateLimit: Required<RateLimitOptions>
 
   private readonly sessions = new Map<string, Session>()
+  private readonly authToken: string
+  private readonly locale: [string, string]
   private helloData: unknown = null
   private state: SessionManagerState = 'idle'
   private readyWaiters: Array<{ resolve: () => void; reject: (err: Error) => void }> = []
@@ -36,11 +41,14 @@ export class SessionManager {
 
   constructor(opts: SessionManagerOptions = {}) {
     this.rateLimit = resolveRateLimit(opts.rateLimit)
+    this.authToken = opts.authToken ?? DEFAULT_AUTH_TOKEN
+    this.locale = opts.locale ?? DEFAULT_LOCALE
 
     this.transport = new Transport({
       url: opts.url ?? TV_WS_URL,
       origin: opts.origin ?? TV_ORIGIN,
       agent: opts.agent,
+      headers: opts.headers,
       reconnect: opts.reconnect,
       signal: opts.signal,
       onOpen: () => this.handleTransportOpen(),
@@ -178,6 +186,13 @@ export class SessionManager {
   private handleHello(data: unknown): void {
     this.helloData = data
     log('hello received')
+
+    // Every connection (initial AND reconnect) must authenticate and
+    // set the locale before sending session commands. TradingView's
+    // server rejects / ignores most session commands issued without
+    // these prologue messages.
+    this.transport.send(encodeCommand('set_auth_token', [this.authToken]))
+    this.transport.send(encodeCommand('set_locale', [...this.locale]))
 
     const wasReconnect = this.hasEverConnected
     this.hasEverConnected = true

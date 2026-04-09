@@ -20,7 +20,7 @@
 
 // ─── Public API ──────────────────────────────────────────────
 export { Client, tv } from './api/client.js'
-export type { ClientEventMap, ClientOptions } from './api/client.js'
+export type { AuthOptions, ClientEventMap, ClientOptions } from './api/client.js'
 
 export { TvSymbol, DEFAULT_STREAM_FIELDS } from './api/symbol.js'
 export type { CandlesOptions } from './api/symbol.js'
