@@ -39,7 +39,6 @@ export type { SessionManagerOptions, SessionManagerState } from './core/session-
 // Sessions
 export { ChartSession, QuoteSession } from './sessions/index.js'
 export type {
-  Candle,
   CandlesUpdate,
   CandleTick,
   ChartSessionOptions,
@@ -48,8 +47,24 @@ export type {
   QuoteUpdate,
   SeriesRequest,
   Session,
-  Timeframe,
 } from './sessions/index.js'
+
+// Typed domain model (Phase 3)
+export type {
+  BarTick,
+  Candle,
+  FullQuoteSnapshot,
+  QuoteField,
+  QuoteFieldTypeMap,
+  QuoteSnapshot,
+  RawTimeframe,
+  SymbolInfo,
+  Timeframe,
+  TimeframeAlias,
+  TradeTick,
+} from './types/index.js'
+export { normalizeTimeframe, symbolInfoFromRaw, TIMEFRAME_ALIASES } from './types/index.js'
+export { kebabToCamel, transformKeys } from './utils/kebab-to-camel.js'
 
 // Errors
 export {

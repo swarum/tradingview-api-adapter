@@ -7,6 +7,10 @@
  * carry the session id as the first parameter.
  */
 
+import type { Candle } from '../types/candle.js'
+
+export type { Candle }
+
 /**
  * Base contract every session class implements so that `SessionManager`
  * can route inbound messages and drive lifecycle events.
@@ -54,17 +58,6 @@ export interface QuoteUpdate {
 export interface QuoteErrorInfo {
   symbol: string
   message: string
-}
-
-/** Parsed OHLCV bar from a chart series. */
-export interface Candle {
-  /** Bar start time, UTC epoch seconds. */
-  time: number
-  open: number
-  high: number
-  low: number
-  close: number
-  volume: number
 }
 
 /** Event payload when a batch of candles is delivered on a series. */

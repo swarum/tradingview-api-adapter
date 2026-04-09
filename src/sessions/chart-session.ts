@@ -20,27 +20,13 @@ import { createLogger } from '../utils/logger.js'
 import { randomId } from '../utils/random-id.js'
 import { TvSymbolError } from '../core/errors.js'
 import type { SessionManager } from '../core/session-manager.js'
-import type { Candle, CandlesUpdate, CandleTick, Session } from './session.types.js'
+import { normalizeTimeframe } from '../types/candle.js'
+import type { Candle, Timeframe } from '../types/candle.js'
+import type { CandlesUpdate, CandleTick, Session } from './session.types.js'
 
 const log = createLogger('session:chart')
 
-export type Timeframe =
-  | '1'
-  | '3'
-  | '5'
-  | '15'
-  | '30'
-  | '60'
-  | '120'
-  | '240'
-  | '360'
-  | '720'
-  | 'D'
-  | '1D'
-  | 'W'
-  | '1W'
-  | 'M'
-  | '1M'
+export type { Timeframe }
 
 export interface SeriesRequest {
   /** Full TradingView pair, e.g. `'BINANCE:BTCUSDT'`. */
@@ -65,6 +51,8 @@ interface InternalSeries {
   seriesId: string
   symbolKey: string
   request: SeriesRequest
+  /** Timeframe already normalized to the TradingView wire format. */
+  rawTimeframe: string
   resolved: boolean
   initialLoaded: boolean
 }
@@ -105,12 +93,14 @@ export class ChartSession implements Session {
   requestSeries(request: SeriesRequest): string {
     if (this.disposed) throw new Error('ChartSession has been disposed')
 
+    const rawTimeframe = normalizeTimeframe(request.timeframe)
     const symbolKey = `sym_${this.nextSymbolSeq++}`
     const seriesId = `sds_${this.nextSeriesSeq++}`
     const internal: InternalSeries = {
       seriesId,
       symbolKey,
       request,
+      rawTimeframe,
       resolved: false,
       initialLoaded: false,
     }
@@ -127,18 +117,12 @@ export class ChartSession implements Session {
       seriesId,
       seriesId,
       symbolKey,
-      request.timeframe,
+      rawTimeframe,
       request.barCount,
       '',
     ])
 
-    log(
-      'requestSeries %s → %s %s x%d',
-      request.symbol,
-      seriesId,
-      request.timeframe,
-      request.barCount,
-    )
+    log('requestSeries %s → %s %s x%d', request.symbol, seriesId, rawTimeframe, request.barCount)
     return seriesId
   }
 
@@ -167,7 +151,7 @@ export class ChartSession implements Session {
   getSeries(): ReadonlyMap<string, { symbol: string; timeframe: string }> {
     const out = new Map<string, { symbol: string; timeframe: string }>()
     for (const [id, s] of this.series) {
-      out.set(id, { symbol: s.request.symbol, timeframe: s.request.timeframe })
+      out.set(id, { symbol: s.request.symbol, timeframe: s.rawTimeframe })
     }
     return out
   }
@@ -236,7 +220,7 @@ export class ChartSession implements Session {
         s.seriesId,
         s.seriesId,
         s.symbolKey,
-        s.request.timeframe,
+        s.rawTimeframe,
         s.request.barCount,
         '',
       ])

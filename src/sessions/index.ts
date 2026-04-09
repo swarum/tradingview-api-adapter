@@ -3,7 +3,7 @@
  */
 
 export { ChartSession } from './chart-session.js'
-export type { ChartSessionOptions, SeriesRequest, Timeframe } from './chart-session.js'
+export type { ChartSessionOptions, SeriesRequest } from './chart-session.js'
 
 export { QuoteSession } from './quote-session.js'
 export type { QuoteSessionOptions } from './quote-session.js'
