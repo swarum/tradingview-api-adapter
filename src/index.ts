@@ -1,28 +1,8 @@
-import {Client} from "./Client";
-import {Quote} from "./Quote";
-import {TickerDetails} from "./TickerDetails";
-import {QuoteChannel} from "./QuoteChannel";
-import {Field, KeyTo} from "./types";
+/**
+ * tradingview-api-adapter
+ *
+ * Real-time market data from TradingView via WebSocket.
+ * Full public API will be populated in phases 1-6 of the V2 rollout.
+ */
 
-export class TvApiAdapter {
-
-    private readonly $client: Client;
-
-    constructor() {
-        this.$client = new Client();
-    }
-
-    public Quote(ticker: string, market: string, fields: Array<string>): Quote {
-        return new Quote(this.$client.createQuoteSession(), ticker, market, fields);
-    }
-
-    public QuoteChannel(quoteKeyList: string[], fields: Array<Field>): QuoteChannel;
-    public QuoteChannel(pairGroups: KeyTo<string[]>, fields: Array<Field>): QuoteChannel;
-    public QuoteChannel(pairGroups: string[] | KeyTo<string[]>, fields: Array<Field>): QuoteChannel {
-        return new QuoteChannel(this.$client.createQuoteSession(), pairGroups, fields);
-    }
-
-    public TickerDetails(ticker: string, market: string): TickerDetails {
-        return new TickerDetails(this.$client.createQuoteSession(), ticker, market);
-    }
-}
+export const version = '2.0.0-dev'

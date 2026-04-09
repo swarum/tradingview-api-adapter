@@ -1,0 +1,29 @@
+name: E2E (Live TradingView)
+
+on:
+  schedule:
+    - cron: '0 4 * * *' # nightly at 04:00 UTC
+  workflow_dispatch:
+
+jobs:
+  live-e2e:
+    name: Live E2E tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run live e2e tests
+        run: npm run test:e2e
+        env:
+          LIVE_E2E: '1'
