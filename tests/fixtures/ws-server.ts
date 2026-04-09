@@ -20,6 +20,8 @@ export interface MockServer {
   disconnectAll(): void
   /** Handler invoked for each new inbound client message. */
   onClientMessage(fn: (client: ServerWebSocket, raw: string) => void): void
+  /** Handler invoked for each new inbound connection (after handshake). */
+  onConnection(fn: (client: ServerWebSocket) => void): void
   /** Stop the server and release the port. */
   close(): Promise<void>
 }
@@ -33,9 +35,11 @@ export async function startMockServer(port = 0): Promise<MockServer> {
 
   const actualPort = (wss.address() as AddressInfo).port
   const messageHandlers: Array<(client: ServerWebSocket, raw: string) => void> = []
+  const connectionHandlers: Array<(client: ServerWebSocket) => void> = []
   let closed = false
 
   wss.on('connection', (client) => {
+    for (const fn of connectionHandlers) fn(client)
     client.on('message', (data) => {
       const raw = typeof data === 'string' ? data : data.toString('utf8')
       for (const fn of messageHandlers) fn(client, raw)
@@ -66,6 +70,9 @@ export async function startMockServer(port = 0): Promise<MockServer> {
     },
     onClientMessage(fn) {
       messageHandlers.push(fn)
+    },
+    onConnection(fn) {
+      connectionHandlers.push(fn)
     },
     async close() {
       if (closed) return

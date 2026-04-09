@@ -27,6 +27,30 @@ export type {
   ProtocolMessage,
 } from './core/protocol.types.js'
 
+// Rate limiter
+export { SymbolBatcher } from './core/rate-limiter.js'
+export { DEFAULT_RATE_LIMIT, resolveRateLimit } from './core/rate-limiter.types.js'
+export type { RateLimitOptions, SymbolBatcherExecutor } from './core/rate-limiter.types.js'
+
+// Session manager
+export { SessionManager } from './core/session-manager.js'
+export type { SessionManagerOptions, SessionManagerState } from './core/session-manager.types.js'
+
+// Sessions
+export { ChartSession, QuoteSession } from './sessions/index.js'
+export type {
+  Candle,
+  CandlesUpdate,
+  CandleTick,
+  ChartSessionOptions,
+  QuoteErrorInfo,
+  QuoteSessionOptions,
+  QuoteUpdate,
+  SeriesRequest,
+  Session,
+  Timeframe,
+} from './sessions/index.js'
+
 // Errors
 export {
   TvConnectionError,
