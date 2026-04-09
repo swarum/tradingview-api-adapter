@@ -28,6 +28,13 @@ export type { CandlesOptions } from './api/symbol.js'
 export { Stream } from './api/stream.js'
 export type { StreamEventMap } from './api/stream.js'
 
+export { MultiStream } from './api/multi-stream.js'
+export type { MultiStreamEventMap, MultiStreamOptions } from './api/multi-stream.js'
+
+export { Portfolio } from './api/portfolio.js'
+export { Group } from './api/group.js'
+export { GroupRegistry } from './api/group-registry.js'
+
 // ─── Typed domain model ──────────────────────────────────────
 export type {
   BarTick,

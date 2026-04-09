@@ -19,7 +19,11 @@ import { QuoteSession } from '../sessions/quote-session.js'
 import type { QuoteErrorInfo, QuoteUpdate } from '../sessions/session.types.js'
 import type { QuoteField } from '../types/quote-fields.js'
 import { TvError } from '../core/errors.js'
-import { TvSymbol } from './symbol.js'
+import { DEFAULT_STREAM_FIELDS, TvSymbol } from './symbol.js'
+import { Portfolio } from './portfolio.js'
+import type { Group } from './group.js'
+import { GroupRegistry } from './group-registry.js'
+import { MultiStream } from './multi-stream.js'
 
 const log = createLogger('client')
 
@@ -59,6 +63,7 @@ export function tv(options: ClientOptions = {}): Client {
 
 export class Client {
   readonly manager: SessionManager
+  readonly groups: GroupRegistry
 
   private quotePool: QuoteSession | null = null
   private readonly symbolCache = new Map<string, TvSymbol>()
@@ -80,6 +85,7 @@ export class Client {
       rateLimit: opts.rateLimit,
       signal: opts.signal,
     })
+    this.groups = new GroupRegistry(this)
   }
 
   /**
@@ -97,6 +103,38 @@ export class Client {
     return s
   }
 
+  /**
+   * Build an ad-hoc `Portfolio` over the given pairs. Unlike
+   * `createGroup`, a portfolio is not tracked by the client — it only
+   * lives as long as the caller holds the reference.
+   */
+  symbols(pairs: readonly string[]): Portfolio {
+    if (this.disposed) throw new TvError('Client has been disposed')
+    return new Portfolio(this, pairs)
+  }
+
+  /**
+   * Create a named `Group` and register it with `client.groups`. Use
+   * groups for long-lived, mutable collections — e.g. a watchlist the
+   * user can edit at runtime.
+   */
+  createGroup(name: string, pairs: readonly string[] = []): Group {
+    if (this.disposed) throw new TvError('Client has been disposed')
+    return this.groups.create(name, pairs)
+  }
+
+  /**
+   * Aggregate multi-symbol stream across every symbol currently
+   * registered on this client. De-duplicates naturally: a pair that
+   * belongs to multiple groups appears once in the client's symbol
+   * cache, so listeners receive one event per tick regardless of how
+   * many groups reference it.
+   */
+  stream(fields: readonly QuoteField[] = DEFAULT_STREAM_FIELDS): MultiStream {
+    if (this.disposed) throw new TvError('Client has been disposed')
+    return new MultiStream(this.symbolCache.values(), fields)
+  }
+
   /** Open the underlying transport and wait until TradingView is ready. */
   async connect(): Promise<void> {
     if (this.disposed) throw new TvError('Client has been disposed')
@@ -104,11 +142,13 @@ export class Client {
     this.emit('open', undefined)
   }
 
-  /** Close everything: pool session, all symbols, transport. */
+  /** Close everything: groups, pool session, all symbols, transport. */
   async disconnect(): Promise<void> {
     if (this.disposed) return
     this.disposed = true
-    log('disconnect: %d cached symbols', this.symbolCache.size)
+    log('disconnect: %d cached symbols, %d groups', this.symbolCache.size, this.groups.size)
+
+    await this.groups._disposeAll()
 
     for (const s of this.symbolCache.values()) {
       s._dispose()
