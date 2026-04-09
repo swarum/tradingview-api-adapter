@@ -29,4 +29,11 @@ export default tseslint.config(
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
+  {
+    // Examples legitimately use console for demonstration output.
+    files: ['examples/**/*.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
 )
