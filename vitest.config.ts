@@ -10,8 +10,12 @@ export default defineConfig({
         test: {
           name: 'node',
           environment: 'node',
-          include: ['tests/unit/**/*.test.ts', 'tests/integration/**/*.test.ts'],
-          exclude: ['tests/unit/browser-*.test.ts', 'tests/e2e/**', 'node_modules', 'dist'],
+          include: [
+            'tests/unit/**/*.test.ts',
+            'tests/integration/**/*.test.ts',
+            'tests/e2e/**/*.test.ts',
+          ],
+          exclude: ['tests/unit/browser-*.test.ts', 'node_modules', 'dist'],
         },
       },
       {
