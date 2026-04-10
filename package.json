@@ -1,6 +1,6 @@
 {
   "name": "tradingview-api-adapter",
-  "version": "2.0.0-dev.0",
+  "version": "2.0.0",
   "description": "Real-time market data from TradingView via WebSocket: quotes, candles, symbol info, streaming, groups.",
   "keywords": [
     "tradingview",

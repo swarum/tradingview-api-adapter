@@ -3,7 +3,7 @@ import { version } from '../../src/index.js'
 
 describe('smoke', () => {
   it('exports version', () => {
-    expect(version).toBe('2.0.0-dev')
+    expect(version).toBe('2.0.0')
   })
 
   it('internal module is importable', async () => {

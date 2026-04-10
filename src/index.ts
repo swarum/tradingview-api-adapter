@@ -63,4 +63,4 @@ export {
 export type { TvErrorOptions } from './core/errors.js'
 
 // ─── Version ─────────────────────────────────────────────────
-export const version = '2.0.0-dev'
+export const version = '2.0.0'
