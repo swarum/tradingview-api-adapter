@@ -107,9 +107,16 @@ dist
 
 # Settings for IDE PhpStorm
 .idea/
+.vscode/
 .DS_Store
 #Env Runner for testing
 _runner.ts
+
+# Claude Code local workspace
+.claude/
+
+# Internal V2 planning docs (local-only, not for publication)
+docs/V2-PLAN.md
 
 
 

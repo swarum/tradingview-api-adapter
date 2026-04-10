@@ -1,43 +1,99 @@
 {
   "name": "tradingview-api-adapter",
-  "version": "1.2.2",
-  "description": "API Adapter for real-time market data as quoted prices and symbol ticker details from Tradingview",
-  "main": "dist/index.js",
-  "directories": {
-    "doc": "docs"
-  },
-  "dependencies": {
-    "ws": "^8.12.0",
-    "events": "^3.3.0"
-  },
-  "devDependencies": {},
-  "scripts": {
-    "dev-watch": "nodemon _runner.ts",
-    "build": "rm -r dist || tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "version": "2.0.0",
+  "description": "Real-time market data from TradingView via WebSocket: quotes, candles, symbol info, streaming, groups.",
+  "keywords": [
+    "tradingview",
+    "tradingview-api",
+    "websocket",
+    "realtime",
+    "market-data",
+    "quotes",
+    "candles",
+    "stocks",
+    "crypto",
+    "finance"
+  ],
+  "author": "Gerasimenko Oleg",
+  "license": "MIT",
+  "homepage": "https://github.com/swarum/tradingview-api-adapter#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/swarum/tradingview-api-adapter.git"
   },
-  "keywords": [
-    "tradingview",
-    "tradingview-api",
-    "tradingview-webhooks",
-    "tradingview-indicator",
-    "stocks-api",
-    "stocks-market",
-    "stock-prices",
-    "stock-trading",
-    "realtime-stocks",
-    "crypto",
-    "bitcoin",
-    "dogecoin"
-  ],
-  "author": "Gerasimenko Oleg",
-  "license": "MIT",
   "bugs": {
     "url": "https://github.com/swarum/tradingview-api-adapter/issues"
   },
-  "homepage": "https://github.com/swarum/tradingview-api-adapter#readme"
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./internal": {
+      "import": {
+        "types": "./dist/internal.d.ts",
+        "default": "./dist/internal.js"
+      },
+      "require": {
+        "types": "./dist/internal.d.cts",
+        "default": "./dist/internal.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "build:watch": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "LIVE_E2E=1 vitest run tests/e2e",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "publint": "publint",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test",
+    "prepublishOnly": "npm run check && npm run build && npm run publint"
+  },
+  "dependencies": {
+    "debug": "^4.3.7",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/debug": "^4.1.12",
+    "@types/node": "^20.16.10",
+    "@types/ws": "^8.5.12",
+    "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^9.12.0",
+    "happy-dom": "^20.8.9",
+    "prettier": "^3.3.3",
+    "publint": "^0.2.11",
+    "tsup": "^8.3.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2",
+    "typescript-eslint": "^8.8.0",
+    "vitest": "^3.2.4"
+  }
 }

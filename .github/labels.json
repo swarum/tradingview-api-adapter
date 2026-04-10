@@ -1,0 +1,32 @@
+[
+  {
+    "name": "bug",
+    "color": "d73a4a",
+    "description": "Something isn't working"
+  },
+  {
+    "name": "enhancement",
+    "color": "a2eeef",
+    "description": "New feature or improvement"
+  },
+  {
+    "name": "question",
+    "color": "d876e3",
+    "description": "Needs clarification or discussion"
+  },
+  {
+    "name": "good first issue",
+    "color": "7057ff",
+    "description": "Good for newcomers"
+  },
+  {
+    "name": "documentation",
+    "color": "0075ca",
+    "description": "Docs improvements"
+  },
+  {
+    "name": "wontfix",
+    "color": "ffffff",
+    "description": "Not planned"
+  }
+]

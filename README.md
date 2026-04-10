@@ -1,311 +1,169 @@
 # tradingview-api-adapter
-📊 API Adapter for real-time market data as quoted prices and symbol ticker details from Tradingview 📈
 
-♻︎ In developing
+📊 Real-time market data from TradingView via WebSocket — typed, composable, and ergonomic.
 
-✅ Current Test Version: 1.2.0 [16.02.2023]
+```ts
+import { tv } from 'tradingview-api-adapter'
 
-👨🏻‍💻I need your feedback. Help improve the library for our general benefit
+const client = tv()
+const btc = client.symbol('BINANCE:BTCUSDT')
+
+console.log(await btc.price()) // → 72183.99
+
+btc.stream().on('price', ({ price }) => {
+  console.log('BTC:', price)
+})
+
+await client.disconnect()
+```
+
+## Features
+
+- ✅ **Real-time quotes** — typed `lp`, `bid`, `ask`, `ch`, `chp`, `volume`, and 50+ other fields
+- ✅ **Historical candles** — OHLCV bars at any TradingView timeframe (1m → 1M)
+- ✅ **Symbol metadata** — full `SymbolInfo` (description, exchange, session hours, …) via one `.info()` call
+- ✅ **Multi-symbol streams** — `Portfolio` for ad-hoc collections, `Group` for named, mutable ones
+- ✅ **Auto-reconnect** — exponential backoff + jitter, automatic session replay
+- ✅ **Full TypeScript types** — `QuoteSnapshot<['lp', 'bid']>` gives you `{ lp?: number | null; bid?: number | null }`
+- ✅ **Async iterator** — `for await (const tick of stream) { ... }`
+- ✅ **Explicit resource management** — `using client = tv()` auto-disconnects
+- ✅ **Node + Browser** — dynamic `ws` import so browser bundles don't carry Node-only code
+- ✅ **Proxy + auth** — HTTP/SOCKS proxy agent, `sessionid`/`authToken` for premium access
+- ✅ **Battle-tested** — 227+ unit tests, integration against a mock WebSocket server, live e2e
 
 ## Installation
 
-Stable version:
-
-```ruby
-npm i tradingview-api-adapter
+```bash
+npm install tradingview-api-adapter
 ```
 
+Requires **Node.js ≥ 20**. See [browser guide](docs/guides/browser.md) for client-side usage.
+
+## Quick start
+
+### Get a price
+
+```ts
+import { tv } from 'tradingview-api-adapter'
+
+const client = tv()
+const btc = client.symbol('BINANCE:BTCUSDT')
+
+const price = await btc.price()
+console.log(`BTC: $${price}`)
+
+await client.disconnect()
+```
+
+### Stream live updates
+
+```ts
+const stream = btc.stream(['lp', 'bid', 'ask', 'ch', 'chp'] as const)
+
+stream.on('price', ({ price }) => console.log(price))
+stream.on('change', ({ value, percent }) => console.log(`${value} (${percent}%)`))
+
+// Or use async iteration:
+for await (const { data } of stream) {
+  console.log(data.lp, data.bid, data.ask)
+  if (someCondition) break // ← automatically closes the stream
+}
+```
+
+### Fetch historical candles
+
+```ts
+const candles = await btc.candles({ timeframe: '1h', count: 100 })
+// → Candle[] with { time, open, high, low, close, volume }
+```
+
+### Multi-symbol portfolio
+
+```ts
+const portfolio = client.symbols([
+  'BINANCE:BTCUSDT',
+  'BINANCE:ETHUSDT',
+  'NASDAQ:AAPL',
+])
+
+const prices = await portfolio.prices()
+// → { 'BINANCE:BTCUSDT': 72183, 'BINANCE:ETHUSDT': 2200, 'NASDAQ:AAPL': 260 }
+
+portfolio.stream().on('price', ({ symbol, price }) => {
+  console.log(`${symbol}: $${price}`)
+})
+```
+
+### Named groups with live mutation
+
+```ts
+const crypto = client.createGroup('crypto', ['BINANCE:BTCUSDT', 'BINANCE:ETHUSDT'])
+
+const stream = crypto.stream()
+stream.on('price', ({ symbol, price }) => console.log(symbol, price))
+
+// Add a pair — active streams pick it up automatically
+crypto.add('BINANCE:SOLUSDT')
+
+// Remove a pair — active streams stop emitting for it
+crypto.remove('BINANCE:ETHUSDT')
+
+// List all registered groups on the client
+console.log(client.groups.list) // → ['crypto']
+```
+
+### Symbol metadata
+
+```ts
+const info = await btc.info()
+console.log(info.description) // → 'Bitcoin / TetherUS'
+console.log(info.exchange) // → 'Binance'
+console.log(info.currencyCode) // → 'USDT'
+console.log(info.isTradable) // → true
+```
+
+## Documentation
+
+- **[Getting Started](docs/getting-started.md)** — installation, first requests, cleanup
+- **[API Reference](docs/api/)** — `Client`, `TvSymbol`, `Stream`, `Group`, types
+- **[Guides](docs/guides/)** — streaming best practices, candles, groups, reconnect, browser, proxy, auth
+- **[Migration from 1.x](MIGRATION.md)** — before/after for every 1.x method
+- **[Contributing](CONTRIBUTING.md)** — development workflow, conventions, `.js` extension rationale
+- **[Changelog](CHANGELOG.md)**
 
 ## Examples
 
-### Quote [Class]: Obtaining quoted data in real time
+The [`examples/`](examples/) directory contains 12 runnable demos:
 
-#### Fields
-```ruby  
-  minmov, minmove2, circulating_supply, popularity
-  average_volume, total_supply, total_shares_outstanding,   
-  
-  ask, bid,
-  
-  lp, low_price, open_price, high_price, prev_close_price, 
-  open_time, chp, ch, volume, total_shares_diluted, total_value_traded,
-  pricescale, pointvalue,
-  
-  first_bar_time_1s, first_bar_time_1m, first_bar_time_1d,
-  all_time_high, all_time_open, all_time_low,
-  price_52_week_low, price_percent_change_52_week, price_52_week_high, price_percent_change_1_week
-  price_percent_change_1_week,
-  
-  'trade', 'minute-bar', 'daily-bar', 'prev-daily-bar'
-```
+| # | File | What it shows |
+|---|---|---|
+| 01 | `01-single-price.ts` | Minimal one-shot price fetch |
+| 02 | `02-streaming.ts` | Single-symbol stream with `price`, `change` events |
+| 03 | `03-multi-symbol.ts` | Ad-hoc `Portfolio` |
+| 04 | `04-groups.ts` | Named `Group` with live `add`/`remove` |
+| 05 | `05-candles-history.ts` | Historical OHLCV bars |
+| 06 | `06-candles-streaming.ts` | Live bar ticks (via internal `ChartSession`) |
+| 07 | `07-symbol-info.ts` | Full symbol metadata |
+| 08 | `08-async-iterator.ts` | `for await` over a stream |
+| 09 | `09-reconnect-resilience.ts` | Automatic reconnect with backoff |
+| 10 | `10-browser.html` | Vanilla HTML page via esm.sh CDN |
+| 11 | `11-proxy-node.ts` | HTTP/SOCKS proxy through an agent |
+| 12 | `12-auth-session.ts` | Authenticated access with TradingView cookies |
 
-#### Usage
-```ruby
-import {TvApiAdapter} from 'tradingview-api-adapter'
+Run any of them with `npx tsx examples/NN-*.ts`. Enable verbose logging via
+`DEBUG=tradingview-adapter:* npx tsx examples/NN-*.ts`.
 
+## Design principles
 
-const adapter = new TvApiAdapter();
+This library is a full rewrite of 1.x. The redesign prioritised:
 
-adapter.Quote('BTCUSD', 'BINANCE', ['lp', 'ch', 'chp']).listen(data => {
-    console.log('Last price: ', data.lp);
-    console.log('Price change: ', data.ch);
-    console.log('Price change in percent: ', data.ch);
-})
-```
+1. **Typed over stringly-typed.** `QuoteSnapshot<['lp', 'bid']>` is `{ lp?: number | null; bid?: number | null }`, not `Record<string, any>`.
+2. **Composable over monolithic.** `Transport` ↔ `Protocol` ↔ `SessionManager` ↔ public API are independently testable and swappable.
+3. **One socket, many sessions.** A single WebSocket connection multiplexes every quote and chart subscription through a shared `SessionManager`.
+4. **Pooled symbols.** `client.symbol('BTC')` always returns the same instance, so overlapping groups dedupe automatically.
+5. **No hidden state.** Every resource (symbol, stream, group) has an explicit lifecycle.
+6. **Browser-safe by construction.** `ws` is loaded through dynamic `import()` so browser bundlers can drop it.
 
-#### Result for all fields
-```ruby
-  minmove2: 0,
-  minmov: 1,
+## License
 
-  circulating_supply: 19289550,
-  popularity: 6559928,
-  average_volume: 1722.622664,
-  total_supply: 19289550,
-  total_shares_outstanding: 19289550,
-
-
-  lp: 21666.54,
-  low_price: 21431.41,
-  open_price: 21793.12,
-  high_price: 21899.36,
-  prev_close_price: 21792.89,
-  open_time: 1676246400,
-  chp: -0.58,
-  ch: -126.35,
-  volume: 1113.41904,
-  total_shares_diluted: 21000000,
-  total_value_traded: 22323876304.39608,
-
-  pricescale: 100,
-  pointvalue: 1,
-
-  first_bar_time_1s: 1660694401,
-  first_bar_time_1m: 1578038400,
-  first_bar_time_1d: 1578009600,
-  all_time_high: 69275.4705132,
-  all_time_open: 6976.1030327,
-  all_time_low: 3717.974312,
-  price_52_week_low: 15479.25,
-  price_percent_change_52_week: -48.97188345,
-  price_52_week_high: 48240.33,
-  price_percent_change_1_week: -6.03974829,
-  
-  trade: {
-    'data-update-time': '1676290514.699386',
-    price: '21641.98',
-    size: '0.01892',
-    time: '1676290505'
-  },
-  'minute-bar': {
-    close: '21641.98',
-    'data-update-time': '1676290514.699386',
-    high: '21641.98',
-    low: '21641.17',
-    open: '21641.37',
-    time: '1676290500',
-    'update-time': '1676290505.0',
-    volume: '0.02528'
-  },
-  'daily-bar': {
-    close: '21641.98',
-    'data-update-time': '1676290514.699387',
-    high: '21899.36',
-    low: '21431.41',
-    open: '21793.12',
-    time: '1676246400',
-    'update-time': '1676290505.0',
-    volume: '1067.39197'
-  },
-  'prev-daily-bar': {
-    close: '21792.89',
-    'data-update-time': '1676246400.609871',
-    high: '22092.14',
-    low: '21640.57',
-    open: '21851.81',
-    time: '1676160000',
-    'update-time': '1676246396.0',
-    volume: '1171.77258'
-  }
-}
-```
-
-### QuoteChannel [💎NEW Class]: Obtaining multi-quoted data in real time
-
-#### Usage
-```ruby
-import {TvApiAdapter} from 'tradingview-api-adapter'
-
-
-const adapter = new TvApiAdapter();
-
-const exChannel = adapter.QuoteChannel({
-    'MUN': ['APC'],
-    'Binance': ['BTCUSDT', 'DOGEUSDT']
-}, ['lp', 'ask', 'bid'])
-
-=====or=====
-
-const exChannel = adapter.QuoteChannel([
-    'BINANCE:BTCUSDT', 'BINANCE:DOGEUSDT' 'MUN:APC'
-], ['lp', 'ask', 'bid'])
-
-
-exChannel.listen(data => {
-    console.log(data)
-})
-```
-
-#### The result of the console
-```ruby
-{
-  BINANCE: {
-    DOGEUSDT: { lp: 0.08892, bid: 0.08892, ask: 0.08893 },
-    BTCUSDT: { bid: 24597.31, ask: 24597.32, lp: 24597.23 }
-  },
-  MUN: { 
-    APC: { lp: 145.24, bid: 144.86, ask: 144.92 } 
-  }
-}
-```
-
-### TickerDetails [Class]: Allows you to get additional info about Ticker Symbol
-
-#### Usage
-```ruby
-import {TvApiAdapter} from 'tradingview-api-adapter'
-
-const adapter = new TvApiAdapter();
-
-const DogeInfo = adapter.TickerDetails('DOGEUSD', 'Binance');
-
-DogeInfo.ready(tm => {
-    console.log(tm)
-})
-
-```
-
-#### The result of the console
-
-```ruby
-{
-    seriesKey: 'BINANCE:DOGEUSD',
-    baseName: [ 'BINANCE:DOGEUSD' ],
-    symbol: 'DOGEUSD',
-    symbolFullname: 'BINANCE:DOGEUSD',
-    feedTicker: 'DOGEUSD',
-    exchangeListedSymbol: 'DOGEUSD',
-    sessionId: 'crypto',
-    sessionRegularDisplay: '24x7',
-    sessionExtendedDisplay: '24x7',
-    sessionExtended: '24x7',
-    sessionDisplay: '24x7',
-    sessionRegular: '24x7',
-    subsessions: [
-        {
-            description: 'Regular Trading Hours',
-            id: 'regular',
-            private: false,
-            session: '24x7',
-            'session-display': '24x7'
-        }
-    ],
-    subsessionId: 'regular',
-    group: 'binance_spreads_runner2',
-    perms: { rt: { prefix: 'BINANCE' } },
-    marketStatus: { phase: 'regular', tradingday: '20230215' },
-    internalStudyId: 'CurrencyConverter@tv-basicstudies-132!',
-    internalStudyInputs: { rate: 'INDEX:BTCUSD', symbol: 'BINANCE:DOGEBTC', useRTRate: true },
-    exchange: 'BINANCE',
-    exchangeTraded: 'BINANCE',
-    listedExchange: 'BINANCE',
-    providerId: 'binance',
-    description: 'Dogecoin / US Dollar (calculated by TradingView)',
-    shortDescription: 'Dogecoin / US Dollar (calculated by TradingView)',
-    type: 'crypto',
-    currencyCode: 'USD',
-    currencyId: 'USD',
-    baseCurrency: 'DOGE',
-    baseCurrencyId: 'XTVCDOGE',
-    symbolPrimaryName: 'BINANCE:DOGEUSD',
-    symbolProname: 'BINANCE:DOGEUSD',
-    proName: 'BINANCE:DOGEUSD',
-    shortName: 'DOGEUSD',
-    originalName: 'BINANCE:DOGEUSD',
-    maxPrecision: 8,
-    isTradable: false,
-    hasDepth: false,
-    fundamentalData: true,
-    fractional: false,
-    popularityRank: 3.5793118736554446,
-    proPerm: '',
-    variableTickSize: '',
-    historyTag: '',
-    rtLag: '9.069304',
-    rtUpdateTime: '1676465374.0',
-    timezone: 'Etc/UTC',
-    currentSession: 'market',
-    feedHasIntraday: true,
-    hasIntraday: true,
-    isReplayable: true,
-    hasPriceSnapshot: false,
-    feed: 'runner-intraday',
-    feedHasDwm: false,
-    hasNoBbo: false,
-    hasNoVolume: false,
-    hasDwm: true,
-    localPopularity: {
-        AE: 790,
-        BR: 4642,
-        CN: 5611,
-        DE: 13065,
-        ES: 13891,
-        FR: 15763,
-        ID: 2634,
-        IL: 318,
-        IN: 13750,
-        IT: 5159,
-        JP: 6325,
-        KR: 5983,
-        PL: 5440,
-        RU: 29302,
-        SE: 645,
-        TH: 7900,
-        TR: 20474,
-        TW: 3793,
-        US: 539550,
-        VN: 2443
-    },
-    localPopularityRank: {
-        AE: 4.2420188926631495,
-        BR: 3.8731514888536487,
-        CN: 3.8369531543119244,
-        DE: 3.5775828338723796,
-        ES: 3.8642349392929574,
-        FR: 3.5099721819085126,
-        ID: 3.634900014607327,
-        IL: 3.946343180230935,
-        IN: 4.3838522732435745,
-        IT: 3.65965996833445,
-        JP: 4.086705608977654,
-        KR: 3.7368189724535967,
-        PL: 3.5024902792902957,
-        RU: 3.7239316911388682,
-        SE: 3.8583321674815934,
-        TH: 3.512627747031323,
-        TR: 3.629837049479071,
-        TW: 3.74280732258542,
-        US: 3.463184155816383,
-        VN: 4.052303315748319
-    },
-    visiblePlotsSet: 'ohlcv',
-    prefixes: [ 'RUNNER_BINANCE2' ],
-    brokerNames: {},
-    currencyLogoId: 'country/US',
-    baseCurrencyLogoId: 'crypto/XTVCDOGE',
-    volumeType: 'base',
-    typespecs: [ 'synthetic' ]
-}
-```
-
-
+MIT © [Gerasimenko Oleg](https://github.com/swarum)
