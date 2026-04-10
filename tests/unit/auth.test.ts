@@ -140,19 +140,12 @@ describe('Auth / locale / headers plumbing', () => {
   })
 
   describe('Client auth API', () => {
-    it('builds a Cookie header from sessionid + sessionidSign', async () => {
-      // Instead of running the full Client (the mock server doesn't
-      // care about handshake headers), we directly test the helper
-      // through the Transport constructor. This isolates the Cookie
-      // string construction.
-      const captured: Record<string, string>[] = []
+    it('builds a Cookie header from sessionid + sessionidSign', () => {
+      // We only test that the options propagate from Client → Transport.
+      // We do NOT connect — the fake agent `{ ping: true }` is not a
+      // real `http.Agent`, and Node ws validates it strictly on connect.
       const fakeAgent = { ping: true }
 
-      // Override createSocket by intercepting at the transport level:
-      // we can't easily observe the headers the Node ws client sends
-      // without a real proxy, so we test the helper via the exported
-      // `Client` → observe that headers object propagates.
-      server.onConnection((c) => c.send(encodeFrame(HELLO)))
       client = tv({
         url: server.url,
         origin: undefined,
@@ -164,17 +157,14 @@ describe('Auth / locale / headers plumbing', () => {
         },
         agent: fakeAgent,
       })
-      await client.connect()
 
-      // What we can really assert: the manager was configured with
-      // headers + agent + authToken. Grab via the internal transport.
+      // Inspect the internal transport options directly — no connect needed.
       const t = (client.manager as unknown as { transport: Transport }).transport
       const opts = (t as unknown as { opts: { headers?: Record<string, string>; agent?: unknown } })
         .opts
 
       expect(opts.headers).toEqual({ Cookie: 'sessionid=abc123; sessionid_sign=sig456' })
       expect(opts.agent).toBe(fakeAgent)
-      void captured
     })
 
     it('omits the Cookie header entirely when no sessionid is provided', async () => {

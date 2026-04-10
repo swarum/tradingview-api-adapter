@@ -254,7 +254,7 @@ protocol wire format.
 
 ## Commits and pull requests
 
-- One PR per phase / feature. See `docs/V2-PLAN.md` for phase breakdown.
+- One PR per feature or fix.
 - Write clear, present-tense commit messages. No "fixed a bug" — say what
   the bug was.
 - Reference issues with `#N` if applicable.
@@ -262,23 +262,6 @@ protocol wire format.
   separately during releases.
 - Run `npm run check` before pushing. CI will run the same, so save
   yourself a red badge.
-
-## Working on a specific phase
-
-V2 is built in phases (see `docs/V2-PLAN.md` if you have access — it's a
-local planning doc, not published):
-
-- **Phase 0** ✅ Repo setup — done
-- **Phase 1** ✅ Transport + Protocol + utils — done
-- **Phase 2** Sessions + RateLimiter + SessionManager
-- **Phase 3** Types (QuoteField, Candle, SymbolInfo)
-- **Phase 4** Public API (Client, Symbol, Stream)
-- **Phase 5** Portfolio + Group + GroupRegistry
-- **Phase 6** Browser + Proxy + Auth
-- **Phase 7** Docs + examples + release polish
-
-If you're contributing to a phase, check the plan for the exact scope and
-deliverables before starting.
 
 ## Reporting issues
 
